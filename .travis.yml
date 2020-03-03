@@ -1,76 +1,37 @@
-language: cpp
-sudo: required
-dist: trusty
-compiler: gcc
-os: linux
-branches:
-  only: master
-
-#addons:
-#  apt:
-#    config:
-#    retries: true
-#    sources:
-#      - ubuntu-toolchain-r-test
-#    packages:
-#      - gcc-8
-#      - g++-8
-#      - wget
-
-cache:
-  directories:
-    - /home/travis/avr-gcc/
-    - /home/travis/output/
-
-git:
-  depth: 1
-
-env:
-  global:
-  # - LANG="fr_FR.UTF-8"
-  - LANG="en_US.UTF-8"   
-  - JOBCOUNT=2
-  - VER_BINUTILS="2.31.1"
-  - VER_GCC="8.2.0"
-  - VER_LIBC="2.0.0"
-  - PREFIX=/home/travis/avr-gcc
-  - OUTPUT=/home/travis/output
+  
+language: c
 
 before_install:
-  - echo $TRAVIS_BUILD_DIR && echo $HOME && pwd
-  - df -h
- # - export CC="gcc-8" CXX="g++-8"
-  - unset CC CXX
-  - export BINUTILS="binutils-${VER_BINUTILS}" GCC="gcc-${VER_GCC}" AVR_LIBC="avr-libc-${VER_LIBC}"
-  - export PATH="$PATH":$PREFIX/bin RELEASE=$OUTPUT/avr-${GCC}.tar.bz2
-  - git config --local user.name "INARES"
-  - git config --local user.email "dev@inares.org"
-  - git tag avr-${GCC}
-  - mkdir -p $OUTPUT
-
+  - ARD_VER="1.8.9"
+  - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_1.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :1 -ac -screen 0 1280x1024x16"
+  - sleep 5
+  - export DISPLAY=:1.0
+  - echo "Downloading version $ARD_VER of the Arduino IDE..."
+  - wget http://downloads.arduino.cc/arduino-$ARD_VER-linux64.tar.xz
+  - echo "Extracting the Arduino IDE..."
+  - tar xf arduino-$ARD_VER-linux64.tar.xz
+  - echo "Moving Arduino IDE..."
+  - sudo mv arduino-$ARD_VER /usr/local/share/arduino
+  - echo "Linking Arduino IDE..."
+  - sudo ln -s /usr/local/share/arduino/arduino /usr/local/bin/arduino
+  - echo "Removing Arduino IDE ver $ARD_VER tar that was downloaded..."
+  - rm arduino-$ARD_VER-linux64.tar.xz
+  
+install:
+  - ln -s $PWD /usr/local/share/arduino/libraries/HVAC
+  
 script:
-  - time sh build_binutils.sh
-  - travis_wait 60 time sh build_gcc.sh
-  - time sh build_avr-libc.sh
-  - cd $TRAVIS_BUILD_DIR/test
-  - ls -alh
-  - make && ls -alh || true
-  - cd ..
-
-before_deploy:
-  - if [ ! -f "$RELEASE" ]; then echo -e "\n*** Creating archive file with avr-${GCC} ***" && cd $PREFIX/.. && tar -cjf $RELEASE avr-gcc && ls -lh $RELEASE ; fi
-
-# https://docs.travis-ci.com/user/deployment/releases/
-deploy:
-  provider: releases
-  api_key:
-    secure: cRBCrb3WGpu4OfVgbU9vXpYWdd+ONsGZvAu6TK7gA7JJFFSPyfNyFXMZnNWM4P6qfSMnbqMPTGt7cV3Kozu0PyE9PYMsqGYWLrJLvqX4Wg5pGO2KIhzunEkRUt+5G9aeBAj34wHwHZ9CZjU9T5spVZ0KDHrCo1NdDWqtezVe3h8F49d5sx8koU66VVRNXeDt17emDdZNvAgbHfpTQ0U95VTDP/DBD1YY8OG2FK9MVwBCSBWhv9MHBg7L8jUlnB6vsJbkv3ll0ROivc2qkgjeeWIeLuARJISl2SaBqk/jFx6FO8ihVrsX9854mft6d6uqqEcQFbraN7b6QFOEs8Iqy7RsAJzZQiJYRh6QApEhZB+hrVw/vrxHQpExCCs4vN7VCVKIiwDtghb2BpDXcAudc9EUV51J8jfZ2rHZ7Nvk0Wb4F1yHJmlYBJ3y8iEm4WrRfQ9j4oZa1JQbMdbniU4C9k/aZscpd0Fz9b1V8XoTa8KHITyqizX7Wx3xN24mgs/3tp507O9JO6C321sjplMnyU0zgCZ98kXukeDLnXEPSS+UpCOzF4BRfw16MibnY85vGbQyilNZd5D7GgzxMu/sGkzilJSm+cUWEIdfXv2hRzh9W9z4fDhcnEcy8YlmC4+wIRJJupYRJQRv3cdBnb5tgtdtccPhOrKwIWxav2sC0/E=
-  file: $RELEASE
-  skip_cleanup: true
-  overwrite: true
-
-after_script:
-  - ls -alhR $PREFIX/
-  - ls -alh $OUTPUT
-  - cd $OUTPUT && du -h --max-depth=1
-  - cd $PREFIX && du -h --max-depth=1
+  - arduino --verify --board ${BOARD} $PWD/abc.ino
+ 
+  
+notifications:
+  email:
+    on_success: change
+    on_failure: change
+    
+env:
+  global:
+    - IDE_VERSION=1.8.9
+  matrix:
+    - BOARD=arduino:avr:uno IDE_VERSION=1.8.9
+    - BOARD=arduino:avr:uno
