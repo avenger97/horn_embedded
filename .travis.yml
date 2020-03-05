@@ -1,5 +1,5 @@
   language: c
   compiler: gcc
   script: 
-       - avr gcc -o file main.ino
+       - gcc -o file main.ino
        - ./file
